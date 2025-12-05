@@ -1,0 +1,34 @@
+# 饮食推荐 Agent 配置文件
+# 复制此文件为 config.yaml 并填写你的配置
+
+# 位置信息
+location:
+  city: "北京"           # 城市名称（用于天气查询）
+  lat: "39.9042"         # 纬度
+  lng: "116.4074"        # 经度
+  radius: 1000           # 搜索半径（米）
+
+# 定时提醒
+schedule:
+  lunch: "11:30"         # 午餐提醒时间
+  dinner: "17:30"        # 晚餐提醒时间
+
+# 永久黑名单（不想被推荐的餐厅名称）
+blacklist:
+  - "某某餐厅"
+  - "不好吃的店"
+
+# 临时排除（每天自动清空）
+temp_exclude: []
+
+# API 配置
+api:
+  amap_key: "你的高德地图API Key"      # 高德地图 Web服务 API Key
+  weather_key: "你的和风天气API Key"   # 和风天气 API Key
+
+# LLM 配置
+llm:
+  provider: "deepseek"                  # 可选: openai, claude, zhipu, deepseek, moonshot, qwen
+  api_key: "你的LLM API Key"
+  base_url: ""                          # 可选，留空使用默认地址
+  model: "deepseek-chat"                # 模型名称
