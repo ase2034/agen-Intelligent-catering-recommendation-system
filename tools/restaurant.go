@@ -14,6 +14,15 @@ type RestaurantClient struct {
 	client *http.Client
 }
 
+// MealCategory 餐厅大类
+type MealCategory string
+
+const (
+	CategoryQuickMeal MealCategory = "quick"  // 快餐类：面、拌饭、简餐
+	CategoryFullMeal  MealCategory = "full"   // 正餐炒菜类
+	CategoryOther     MealCategory = "other"  // 其他
+)
+
 // Restaurant 餐厅信息
 type Restaurant struct {
 	Name     string `json:"name"`     // 餐厅名称
@@ -24,6 +33,7 @@ type Restaurant struct {
 	Cost     string `json:"cost"`     // 人均消费
 	Tel      string `json:"tel"`      // 电话
 	Weight   int    `json:"-"`        // 计算后的权重（不序列化）
+	Category MealCategory `json:"-"`  // 餐厅大类（快餐/正餐）
 }
 
 // NewRestaurantClient 创建餐厅搜索客户端
@@ -214,4 +224,69 @@ func FilterByWeight(restaurants []Restaurant) []Restaurant {
 		}
 	}
 	return filtered
+}
+
+// 快餐类关键词（面、拌饭、简餐、快餐等）
+var quickMealKeywords = []string{
+	"面", "粉", "拌饭", "盖饭", "快餐", "简餐", "便当", "饭团",
+	"包子", "饺子", "馄饨", "小吃", "煎饼", "肉夹馍", "凉皮",
+	"麻辣烫", "冒菜", "米线", "酸辣粉", "螺蛳粉",
+	"汉堡", "披萨", "炸鸡", "三明治", "沙拉",
+	"寿司", "饭卷", "便利店",
+}
+
+// 正餐炒菜类关键词
+var fullMealKeywords = []string{
+	"中餐厅", "川菜", "湘菜", "粤菜", "鲁菜", "苏菜", "浙菜", "徽菜", "闽菜",
+	"东北菜", "本帮菜", "家常菜", "私房菜", "农家菜",
+	"火锅", "烤肉", "烧烤", "自助餐",
+	"西餐", "日料", "韩餐", "泰餐", "东南亚",
+}
+
+// ClassifyRestaurant 判断餐厅类型
+func ClassifyRestaurant(r *Restaurant) MealCategory {
+	nameAndType := r.Name + r.Type
+
+	// 先检查快餐类
+	for _, kw := range quickMealKeywords {
+		if strings.Contains(nameAndType, kw) {
+			return CategoryQuickMeal
+		}
+	}
+
+	// 再检查正餐类
+	for _, kw := range fullMealKeywords {
+		if strings.Contains(nameAndType, kw) {
+			return CategoryFullMeal
+		}
+	}
+
+	return CategoryOther
+}
+
+// ClassifyAllRestaurants 为所有餐厅分类
+func ClassifyAllRestaurants(restaurants []Restaurant) {
+	for i := range restaurants {
+		restaurants[i].Category = ClassifyRestaurant(&restaurants[i])
+	}
+}
+
+// GetDistanceInt 获取距离的整数值（米）
+func (r *Restaurant) GetDistanceInt() int {
+	if r.Distance == "" {
+		return 0
+	}
+	var dist int
+	fmt.Sscanf(r.Distance, "%d", &dist)
+	return dist
+}
+
+// GetRatingFloat 获取评分的浮点值
+func (r *Restaurant) GetRatingFloat() float64 {
+	if r.Rating == "" || r.Rating == "[]" {
+		return 0
+	}
+	var rating float64
+	fmt.Sscanf(r.Rating, "%f", &rating)
+	return rating
 }

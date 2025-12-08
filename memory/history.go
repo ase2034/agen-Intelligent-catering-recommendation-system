@@ -9,12 +9,13 @@ import (
 
 // MealRecord 用餐记录
 type MealRecord struct {
-	Date       string `json:"date"`       // 日期 2024-01-15
-	MealType   string `json:"meal_type"`  // lunch / dinner
-	Restaurant string `json:"restaurant"` // 餐厅名称
-	Category   string `json:"category"`   // 菜系类型
-	Rating     int    `json:"rating"`     // 用户评分 1-5（可选）
-	Note       string `json:"note"`       // 备注
+	Date         string `json:"date"`          // 日期 2024-01-15
+	MealType     string `json:"meal_type"`     // lunch / dinner
+	Restaurant   string `json:"restaurant"`    // 餐厅名称
+	Category     string `json:"category"`      // 菜系类型（川菜、湘菜等）
+	MealCategory string `json:"meal_category"` // 餐厅大类：quick(快餐) / full(正餐炒菜)
+	Rating       int    `json:"rating"`        // 用户评分 1-5（可选）
+	Note         string `json:"note"`          // 备注
 }
 
 // History 历史记录管理
@@ -224,4 +225,25 @@ func (h *History) Summary() string {
 		summary += "\n"
 	}
 	return summary
+}
+
+// GetThisWeekMealCategoryCount 获取本周某类餐厅的用餐次数
+// mealCategory: "quick" 快餐类, "full" 正餐炒菜类
+func (h *History) GetThisWeekMealCategoryCount(mealCategory string) int {
+	// 获取本周一的日期
+	now := time.Now()
+	weekday := int(now.Weekday())
+	if weekday == 0 {
+		weekday = 7 // 周日算作第7天
+	}
+	mondayOffset := -(weekday - 1)
+	monday := now.AddDate(0, 0, mondayOffset).Format("2006-01-02")
+
+	count := 0
+	for _, r := range h.Records {
+		if r.Date >= monday && r.MealCategory == mealCategory {
+			count++
+		}
+	}
+	return count
 }

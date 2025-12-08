@@ -71,7 +71,13 @@ func (a *MealAgent) GetRecommendation(mealType string) (string, error) {
 		restaurants = tools.FilterByType(restaurants, a.tempExclude)
 	}
 
-	// 5. 计算权重并排序（替代简单的过滤）
+	// 5. 为所有餐厅分类（快餐/正餐）
+	tools.ClassifyAllRestaurants(restaurants)
+
+	// 6. 获取本周炒菜类次数
+	thisWeekFullMealCount := a.history.GetThisWeekMealCategoryCount(string(tools.CategoryFullMeal))
+
+	// 7. 计算权重并排序（综合距离、评分、历史等因素）
 	penalties := a.history.GetAllPenalties()
 	for i := range restaurants {
 		// 基础权重 100
@@ -96,6 +102,41 @@ func (a *MealAgent) GetRecommendation(mealType string) (string, error) {
 		// 减去历史惩罚（最近吃过的降权）
 		if penalty, ok := penalties[restaurants[i].Name]; ok {
 			weight += penalty
+		}
+
+		// === 距离因素（平衡权重，不再让近距离主导） ===
+		// 距离奖励/惩罚：500m以内轻微加分，500-1000m正常，1000m以上轻微减分
+		dist := restaurants[i].GetDistanceInt()
+		switch {
+		case dist <= 300:
+			weight += 10 // 很近，轻微加分
+		case dist <= 500:
+			weight += 5 // 近，小幅加分
+		case dist <= 1000:
+			// 中等距离，不调整
+		case dist <= 1500:
+			weight -= 10 // 稍远，轻微减分
+		default:
+			weight -= 20 // 较远，减分
+		}
+
+		// === 评分因素 ===
+		rating := restaurants[i].GetRatingFloat()
+		if rating > 0 {
+			// 评分 4.5+ 加分，4.0以下减分
+			if rating >= 4.5 {
+				weight += 15
+			} else if rating >= 4.0 {
+				weight += 5
+			} else if rating < 3.5 {
+				weight -= 10
+			}
+		}
+
+		// === 炒菜类频率限制 ===
+		// 如果本周炒菜类已吃>=2次，大幅降低炒菜类权重
+		if restaurants[i].Category == tools.CategoryFullMeal && thisWeekFullMealCount >= 2 {
+			weight -= 40 // 大幅降权
 		}
 
 		restaurants[i].Weight = weight
@@ -245,10 +286,11 @@ func (a *MealAgent) confirmChoice(input string) (string, error) {
 	}
 
 	err := a.history.Add(memory.MealRecord{
-		Date:       time.Now().Format("2006-01-02"),
-		MealType:   mealType,
-		Restaurant: selectedRestaurant.Name,
-		Category:   extractCategory(selectedRestaurant.Type),
+		Date:         time.Now().Format("2006-01-02"),
+		MealType:     mealType,
+		Restaurant:   selectedRestaurant.Name,
+		Category:     extractCategory(selectedRestaurant.Type),
+		MealCategory: string(selectedRestaurant.Category), // 保存餐厅大类（快餐/正餐）
 	})
 	if err != nil {
 		return "", fmt.Errorf("记录失败: %v", err)
